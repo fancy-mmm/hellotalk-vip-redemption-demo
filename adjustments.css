@@ -1,0 +1,4 @@
+.benefit-box::after{display:none}
+.product-copy{min-height:48px}
+.mail-signoff{margin:20px 2px 15px!important;color:#4f525a!important;line-height:20px!important}
+.mail-signoff strong{font-weight:700}
