@@ -1,5 +1,5 @@
 const initialState = () => ({
-  screen: "mail", loggedIn: false, redeemed: false, modal: false, review: false,
+  screen: "mail", loggedIn: false, redeemed: false, review: false,
   activeRule: "FR-001", context: "未创建", contextLeft: "—",
   orderStatus: "Awaiting redemption", tiktokStatus: "Delivered", account: "—",
   logs: ["订单商品项已绑定会员权益凭证", "等待用户访问会员兑换页面"],
@@ -17,7 +17,7 @@ const rules = [
   ["FR-001", "邮件兑换入口", "邮件仅提供官网会员兑换页面链接，不展示二维码、App 引导或明文兑换码。"],
   ["FR-002", "官网登录承接", "未登录用户停留在当前兑换页；点击右上角“登录”，不出现注册入口。"],
   ["FR-003", "登录回跳", "登录前保存短期 order context；登录成功后自动返回原兑换页，不跳转官网首页。"],
-  ["FR-004", "会员权益兑换", "登录后展示订单对应权益，用户确认后完成兑换；同一订单商品项不可重复兑换。"],
+  ["FR-004", "会员权益兑换", "登录后展示订单对应权益；用户点击领取后直接完成兑换，不再进行二次确认。同一订单商品项不可重复兑换。"],
   ["FR-005", "失效与售后", "退款、权益回收及订单状态变更沿用原权益凭证处理，不重新生成权益。"],
   ["FR-007", "履约状态回传", "兑换完成后向 TikTok Shop 回传状态；失败时记录原因并按履约时效重试。"],
   ["FR-008", "异常任务处理", "后台展示登录回跳、兑换、退款、权益回收及状态回传异常，支持筛选、查看与幂等重试。"],
@@ -26,7 +26,7 @@ const rules = [
 function esc(value) { return String(value).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])); }
 function addLog(message) { state.logs = [message, ...state.logs].slice(0, 6); }
 function setScreen(screen) {
-  state.screen = screen; state.modal = false;
+  state.screen = screen;
   if (screen === "landing") { state.loggedIn = false; state.context = "未创建"; state.contextLeft = "—"; }
   if (screen === "return" || screen === "confirm") {
     state.loggedIn = true; state.account = "fancy@hellotalk.com"; state.context = "有效"; state.contextLeft = "14:36";
@@ -55,12 +55,12 @@ function websiteHeader() {
 }
 function landingScreen() {
   return `<div class="mobile-screen website-page">${statusBar()}${websiteHeader()}
-    <div class="redeem-hero"><div class="hero-orbit"><span>VIP</span></div><span class="secure-pill">TikTok Shop 会员权益</span><h1>兑换你的 HelloTalk VIP</h1><p>登录 HelloTalk 账号，确认后即可领取会员权益</p></div>
+    <div class="redeem-hero"><div class="hero-orbit"><span>VIP</span></div><span class="secure-pill">TikTok Shop 会员权益</span><h1>兑换你的 HelloTalk VIP</h1><p>登录 HelloTalk 账号后即可领取会员权益</p></div>
     <section class="order-card"><div class="product-icon">VIP</div><div class="product-copy"><small>会员商品</small><strong>${order.product}</strong></div>
       <span class="state-chip ${state.redeemed ? "done" : ""}">${state.redeemed ? "已兑换" : "待兑换"}</span>
     </section>
-    ${!state.loggedIn ? `<div class="login-notice"><span class="notice-step">1</span><div><strong>登录 HelloTalk</strong><p>登录成功后会自动返回当前页面，无需重新打开邮件。</p></div><button data-action="login">登录并继续</button></div><button class="primary-action page-action" disabled>确认并领取</button>` : ""}
-    ${state.loggedIn && !state.redeemed ? `<div class="signed-notice"><span>✓</span><div><small>当前领取账号</small><strong>Fancy</strong></div></div><button class="primary-action page-action" data-action="confirm">确认并领取</button><p class="page-footnote">领取后，会员权益将立即发放至当前账号</p>` : ""}
+    ${!state.loggedIn ? `<div class="login-notice"><span class="notice-step">1</span><div><strong>登录 HelloTalk</strong><p>登录成功后会自动返回当前页面，无需重新打开邮件。</p></div><button data-action="login">登录并继续</button></div><button class="primary-action page-action" disabled>领取会员权益</button>` : ""}
+    ${state.loggedIn && !state.redeemed ? `<div class="signed-notice"><span>✓</span><div><small>当前领取账号</small><strong>Fancy</strong></div></div><button class="primary-action page-action" data-action="redeem">领取会员权益</button><p class="page-footnote">点击后，会员权益将立即发放至当前账号</p>` : ""}
     ${state.redeemed ? `<div class="success-card"><span>✓</span><strong>会员权益领取成功</strong><p>${order.product} 已发放至账号 Fancy</p><small>现在可以使用 HelloTalk VIP 的全部会员权益</small></div>` : ""}
   </div>`;
 }
@@ -69,14 +69,11 @@ function loginScreen() {
     <div class="login-content"><div class="large-logo">H</div><h1>欢迎回来</h1><p>登录 HelloTalk，继续领取你的会员权益</p><label>手机号或邮箱</label><input value="fancy@hellotalk.com" readonly>
       <label>验证码</label><div class="otp-row"><input value="5208" readonly><button>获取验证码</button></div><button class="primary-action" data-action="login-submit">登录并返回兑换页面</button><small>此页面仅用于登录已有的 HelloTalk 账号</small></div></div>`;
 }
-function confirmModal() {
-  return `<div class="modal-scrim"><div class="confirm-sheet"><div class="sheet-handle"></div><div class="confirm-icon">VIP</div><h2>确认领取会员权益</h2><p>领取后，${order.product} 将发放至以下 HelloTalk 账号。</p><div class="confirm-summary"><span>领取账号</span><strong>Fancy</strong></div><button class="primary-action" data-action="redeem">确认并领取</button><button class="text-action" data-action="close-modal">返回检查</button></div></div>`;
-}
 function phone() {
   let content = mailScreen();
   if (["landing","return","confirm","success"].includes(state.screen)) content = landingScreen();
   if (state.screen === "login") content = loginScreen();
-  return `<div class="phone-wrap"><div class="phone">${content}${state.modal ? confirmModal() : ""}</div><div class="phone-caption"><span class="live-dot"></span>交互演示 · 可点击页面按钮</div></div>`;
+  return `<div class="phone-wrap"><div class="phone">${content}</div><div class="phone-caption"><span class="live-dot"></span>交互演示 · 可点击页面按钮</div></div>`;
 }
 function controlPanel() {
   return `<aside class="side-panel"><div class="panel-header"><p class="panel-label">CONTENT DEMO</p><h2>内容演示入口</h2></div><div class="panel-body">
@@ -91,7 +88,7 @@ function opsPanel() {
     <section class="ops-section rules"><h3>需求规则</h3>${rules.map(([id,title,desc]) => `<button class="rule-item ${state.activeRule === id ? "is-active" : ""}" data-rule="${id}"><span>${id}</span><strong>${title}</strong><small>${desc}</small></button>`).join("")}</section></div></aside>`;
 }
 function render() {
-  document.querySelector("#app").innerHTML = `<div class="workbench"><header class="workbench-header"><div><p class="eyebrow">HELLOTALK × TIKTOK SHOP</p><h1>VIP 会员官网兑换 Demo</h1><p>中文演示：TikTok Shop 邮件入口、官网仅登录、原页面回跳、会员确认兑换与异常状态。</p></div><label class="review-switch"><input type="checkbox" data-action="review" ${state.review ? "checked" : ""}><span>需求评审模式</span></label></header><div class="demo-grid ${state.review ? "" : "is-previewing"}">${controlPanel()}${phone()}${state.review ? opsPanel() : ""}</div></div>`;
+  document.querySelector("#app").innerHTML = `<div class="workbench"><header class="workbench-header"><div><p class="eyebrow">HELLOTALK × TIKTOK SHOP</p><h1>VIP 会员官网兑换 Demo</h1><p>中文演示：TikTok Shop 邮件入口、官网仅登录、原页面回跳、会员直接领取与异常状态。</p></div><label class="review-switch"><input type="checkbox" data-action="review" ${state.review ? "checked" : ""}><span>需求评审模式</span></label></header><div class="demo-grid ${state.review ? "" : "is-previewing"}">${controlPanel()}${phone()}${state.review ? opsPanel() : ""}</div></div>`;
 }
 
 document.addEventListener("click", event => {
@@ -102,9 +99,7 @@ document.addEventListener("click", event => {
   if (action === "login") { state.context = "有效"; state.contextLeft = "15:00"; addLog("已创建短期 order context，开始官网登录"); state.screen = "login"; return render(); }
   if (action === "cancel-login") { state.screen = "landing"; return render(); }
   if (action === "login-submit") { state.loggedIn = true; state.account = "fancy@hellotalk.com"; state.contextLeft = "14:36"; state.screen = "return"; addLog("登录成功，已按 order context 回跳原兑换页"); return render(); }
-  if (action === "confirm") { state.modal = true; return render(); }
-  if (action === "close-modal") { state.modal = false; return render(); }
-  if (action === "redeem") { state.modal = false; state.redeemed = true; state.screen = "success"; state.orderStatus = "Redeemed"; state.tiktokStatus = "Completed"; addLog("权益发放成功，TikTok Shop 状态已回传 Completed"); return render(); }
+  if (action === "redeem") { state.redeemed = true; state.screen = "success"; state.orderStatus = "Redeemed"; state.tiktokStatus = "Completed"; addLog("权益发放成功，TikTok Shop 状态已回传 Completed"); return render(); }
   if (action === "expire") { state.screen = "landing"; state.loggedIn = false; state.context = "已过期"; state.contextLeft = "00:00"; state.account = "—"; addLog("order context 已过期，需从原邮件入口重新进入"); return render(); }
   if (action === "duplicate") { state.screen = "success"; state.loggedIn = true; state.redeemed = true; state.account = "fancy@hellotalk.com"; state.orderStatus = "Redeemed"; addLog("检测到重复兑换请求，返回原兑换结果，未重复发放权益"); return render(); }
   if (action === "reset") { state = initialState(); return render(); }
